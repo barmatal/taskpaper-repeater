@@ -5,7 +5,6 @@ from datetime import datetime
 import time
 import re
 import os
-import remind
 import yaml
 
 # Load configuration
