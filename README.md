@@ -2,9 +2,11 @@
 
 # TODO:
 
-- [X] Move paths to configuration file
-- [ ] Change logic to keep all the variables inside the same file
+- Move paths to configuration file
+- [x] Change logic to keep all the variables inside the same file
+- [x] Recreate archive file
+- [ ] Make @freq logic
+- [ ] Move to specific project
 - [ ] Allow multifile (Personal.taskpaper, Work.taskpaper, etc)
 - [ ] Document
-- [ ] Experiment with existing taskpaper libraries in Python
 - [ ] Unit tests
