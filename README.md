@@ -7,6 +7,8 @@
 - [x] Recreate archive file
 - [x] Make @freq logic
 - [x] Allow multifile (Personal.taskpaper, Work.taskpaper, etc)
+
+# FUTURE:
 - [ ] Move to specific project
 - [ ] Document
 - [ ] Unit tests
