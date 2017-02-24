@@ -39,13 +39,14 @@ def getFreqTagAsDate(doneValue, freqValue):
     doneDate = datetime.strptime(doneValue, "%Y-%m-%d")
     periodCode = freqValue[-1]
     periodAmount = freqValue[:-1]
+    basetime = timedelta(days=0)
     if periodCode == 'd':
         baseTime = timedelta(days=+int(periodAmount))
-    if periodCode == 's':
+    if periodCode == 'w':
         baseTime = timedelta(days=+int(periodAmount)*7)
     if periodCode == 'm':
         baseTime = timedelta(days=+int(periodAmount)*30)
-    if periodCode == 'a':
+    if periodCode == 'y':
         baseTime = timedelta(days=+int(periodAmount)*365)
 
     newDt = doneDate + baseTime
@@ -73,7 +74,6 @@ def recurrentTasks(data):
             # if we already reached the Archive, we set the Archive flag to true
             if 'Archive:' in line:
                 archive = True
-            print archive
             if doneValue and archive:
                 # done -> check if there is recurrence
                 dueValue = getTag('due', line)
