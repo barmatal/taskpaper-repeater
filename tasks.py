@@ -1,13 +1,12 @@
 import shutil
 import sys
-from datetime import date
-from datetime import timedelta
-from datetime import datetime
+from datetime import date, datetime, timedelta
+from glob import glob
 import time
 import re
 import os
 
-inputFile = sys.argv[1]
+inputFolder = sys.argv[1]
 
 SPANISHDATEMAPPING = {
         "Mon": "l",
@@ -35,110 +34,133 @@ def getTag(tagName, line):
     else:
         return match
 
+# Gets the content of the freq in date format
+def getFreqTagAsDate(doneValue, freqValue):
+    doneDate = datetime.strptime(doneValue, "%Y-%m-%d")
+    periodCode = freqValue[-1]
+    periodAmount = freqValue[:-1]
+    if periodCode == 'd':
+        baseTime = timedelta(days=+int(periodAmount))
+    if periodCode == 's':
+        baseTime = timedelta(days=+int(periodAmount)*7)
+    if periodCode == 'm':
+        baseTime = timedelta(days=+int(periodAmount)*30)
+    if periodCode == 'a':
+        baseTime = timedelta(days=+int(periodAmount)*365)
+
+    newDt = doneDate + baseTime
+
+    return newDt.strftime("%Y-%m-%d")
+
+# Removes the "done" and "project" tags from a task
 def cleanLine(line):
     tagList = line.split('@')
     finalLineList = [x for x in tagList if not x.startswith('project') and not x.startswith('done')]
     return '@'.join(finalLineList) + '\n'
 
+
+
 # Manages the recurrence logic so recurring tasks are added to the main task list with the defined frequency
 def recurrentTasks(data):
 
-    # inProject = []
     resultTasks = []
+    archive = False
 
     for line in data:
-        # First let's find out if there is a due field
-        if getTag('done', line):
-            # done -> check if there is recurrence
-            dueValue = getTag('due', line)
-            if dueValue:
-                # done and due -> Check if the due period match
-                if dueValue == fullDate or dueValue == monthDate or dueValue == dayDate or weekDate in dueValue:
-                    # if the due field matches one of the matching rules, it's processed.
-                    # Now let's check if the task has a project defined
-                    hasProject = getTag('project', line)
-                    # First we clean the task name to remove tags
-                    finalLine = cleanLine(line)
-
-                    if not hasProject:
-                        # Non-project tasks are inserted right away
+        try:
+            # First let's find out if there is a done field
+            doneValue = getTag('done', line)
+            # if we already reached the Archive, we set the Archive flag to true
+            if 'Archive:' in line:
+                archive = True
+            print archive
+            if doneValue and archive:
+                # done -> check if there is recurrence
+                dueValue = getTag('due', line)
+                freqValue = getTag('freq', line)
+                if dueValue and not freqValue:
+                    # done and due, not freq -> Check if the due period match
+                    if dueValue == fullDate or dueValue == monthDate or dueValue == dayDate or weekDate in dueValue:
+                        # if the due field matches one of the matching rules, it's processed.
+                        # First we clean the task name to remove unwanted
+                        finalLine = cleanLine(line)
                         resultTasks.insert(0, finalLine)
                     else:
-                        # In-project tasks are inserted in a list to be dealt with later
-                        # inProject.append([hasProject+':', '\t' + finalLine.strip() + '\n'])
-                        resultTasks.insert(0, finalLine)
-                else:
-                    # done, due, not matching
-                    resultTasks.append(line)
-                # else:
-                    # done, not due -> Archive
-        else:
-            # Not done -> copied to new file
-            resultTasks.append(line)
+                        # done, due, not matching -> Keep it for the future due
+                        resultTasks.append(line)
+                if freqValue:
+                    freqDate = getFreqTagAsDate(doneValue, freqValue)
+                    if dueValue:
+                        # freq and due value. We need to get the dates.
+                        if freqDate <= fullDate and dueValue == weekDate:
+                            finalLine = cleanLine(line)
+                            resultTasks.insert(0, finalLine)
+                        else:
+                            resultTasks.append(line)
+                    else:
+                        # freq, not due value.
+                        if freqDate <= fullDate:
+                            finalLine = cleanLine(line)
+                            resultTasks.insert(0, finalLine)
+                        else:
+                            resultTasks.append(line)
+            else:
+                # Not done -> copied to new file
+                resultTasks.append(line)
+        except ValueError:
+            resultTasks.append(line + '@ERROR')
 
-    # # First we fill the task file
-    # tasksLeft = list(inProject)
-
-    # with open('newtest', 'a') as new:
-    #     # Insert the previously existing tasks in the file. We'll use this loop to find projects and insert in-project tasks
-    #     for line in data:
-    #         new.write(line)
-    #         if line.strip().endswith(':'):
-    #             # The line is a project. We check our in-project list to check if any task belong there
-    #             for task in inProject:
-    #                 if task[0].strip().capitalize() in line.strip().capitalize():
-    #                     # Task is inserted after the project line, and also removed from the list of tasks left
-    #                     new.write(task[1])
-    #                     tasksLeft.remove(task)
-
-    # if(len(tasksLeft) > 0):
-    #     # if this is true, there are some tasks with non-existing projects.
-    #     # In this case we insert them at the beginning so the user can deal with it faster
-    #     with file('newtest', 'r') as original:
-    #         data = original.read()
-    #     with file('newtest', 'w') as original:
-    #         for task in tasksLeft:
-    #             original.write(task[1])
-    #         original.write(data)
-
-    # # Finally we overwrite the old file
-    # shutil.move('newtest', TASKS_FILE)
     return resultTasks
 
-# Move done tasks in the archive project to an archive file
-def archiveDoneTasks():
-    with file(TASKS_FILE, 'r') as original:
-        data = original.readlines()
+def getTasksToArchive(data):
+    tasksToArchive = []
+    archive = False
 
-    archiveStart = False
-    with open(TASKS_FILE, 'w') as old, open(ARCHIVE_FILE, 'a') as archive:
-        archive.write("\nArchived on "+time.strftime("%Y-%m-%d")+":\n")
-        # We read the file until we found the Archive section.
-        for line in data:
-            if archiveStart:
-                archive.write(line.lstrip())
-            else:
-                old.write(line)
-            if 'Archive:' in line:
-                archiveStart = True
+    for line in data:
+        if 'Archive:' in line:
+            archive = True
+        # First let's find out if there is a due field
+        if archive and getTag('done', line) and not getTag('due', line) and not getTag('freq', line):
+            # done and no due/freq: Archive this task
+            tasksToArchive.append(line)
 
-def tail(f, n):
-    stdin,stdout = os.popen2("tail -n "+n+" "+f)
-    stdin.close()
-    lines = stdout.readlines(); stdout.close()
-    return lines
+    return tasksToArchive
 
 #Main Functions
 def main():
-    #Save the content of the current tasks file in order to replicate it later
-    with open(inputFile, 'r') as original:
-        data = original.readlines()
-    output = recurrentTasks(data)
-    # with open(inputFile, 'w') as updated:
-    with open('Tareas_output.taskpaper', 'w') as updated:
-        for line in output:
-            updated.write(line)
-    # archiveDoneTasks()
+    # Recursively get all taskpaper file in the input path
+    result = [y for x in os.walk(inputFolder) for y in glob(os.path.join(x[0], '*.taskpaper'))]
+    archiveTasks = []
+    archiveFile = 'Archive.taskpaper'
+
+    for inputFile in result:
+        # If this is an archive file, changes the archive file var and skips the processing
+        if 'Archive.taskpaper' in inputFile:
+            print 'Archive file is ' + inputFile
+            archiveFile = inputFile
+        else:
+            #Save the content of the current tasks file in order to replicate it later
+            with open(inputFile, 'r') as original:
+                data = original.readlines()
+
+            resultingTasks = recurrentTasks(data)
+            archiveTasks = archiveTasks + getTasksToArchive(data)
+
+            if resultingTasks == data:
+                print inputFile + ': No changes in task file'
+            else:
+                print inputFile
+                with open(inputFile, 'w') as updated:
+                    for line in resultingTasks:
+                        updated.write(line)
+
+    if len(archiveTasks) == 0:
+        print "No archived tasks"
+    else:
+        with open(archiveFile, 'a') as archive:
+            archive.write("\nArchived on "+time.strftime("%Y-%m-%d")+":\n")
+            for line in archiveTasks:
+                archive.write(line)
 
 if __name__ == "__main__":
     main()
