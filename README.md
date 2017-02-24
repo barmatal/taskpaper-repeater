@@ -4,9 +4,9 @@
 
 - [x] Move paths to configuration file
 - [x] Change logic to keep all the variables inside the same file
-- [ ] Recreate archive file
-- [ ] Make @freq logic
+- [x] Recreate archive file
+- [x] Make @freq logic
+- [x] Allow multifile (Personal.taskpaper, Work.taskpaper, etc)
 - [ ] Move to specific project
-- [ ] Allow multifile (Personal.taskpaper, Work.taskpaper, etc)
 - [ ] Document
 - [ ] Unit tests
