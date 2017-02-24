@@ -152,7 +152,7 @@ def main():
                 print inputFile
                 with open(inputFile, 'w') as updated:
                     for line in resultingTasks:
-                        updated.write(line)
+                        updated.write(line.strip() + '\n')
 
     if len(archiveTasks) == 0:
         print "No archived tasks"
@@ -160,7 +160,7 @@ def main():
         with open(archiveFile, 'a') as archive:
             archive.write("\nArchived on "+time.strftime("%Y-%m-%d")+":\n")
             for line in archiveTasks:
-                archive.write(line)
+                archive.write(line.strip() + '\n')
 
 if __name__ == "__main__":
     main()
