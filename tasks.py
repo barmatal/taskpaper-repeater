@@ -7,6 +7,7 @@ import re
 import os
 
 inputFolder = sys.argv[1]
+archiveFile = '/Users/barmatal/Dropbox/Documentos/Tareas/Archive.taskpaper'
 
 SPANISHDATEMAPPING = {
         "Mon": "l",
@@ -59,7 +60,21 @@ def cleanLine(line):
     finalLineList = [x for x in tagList if not x.startswith('project') and not x.startswith('done')]
     return '@'.join(finalLineList) + '\n'
 
-
+# Checks if date in due matches any of the criteria
+def matchDate(dueValue):
+    hyphenCount = dueValue.count('-')
+    if hyphenCount == 2:
+        # If due value is full date type (2018-10-01)
+        return dueValue <= fullDate
+    if hyphenCount == 1:
+        # Due value is in month date type (09-01)
+        return dueValue <= monthDate
+    if hyphenCount == 0 and dueValue.isdigit():
+        # Due value is in day date type (13)
+        return int(dueValue) <= int(dayDate)
+    else:
+        # Due valus is in weekday format (j)
+        return weekDate in dueValue
 
 # Manages the recurrence logic so recurring tasks are added to the main task list with the defined frequency
 def recurrentTasks(data):
@@ -80,7 +95,7 @@ def recurrentTasks(data):
                 freqValue = getTag('freq', line)
                 if dueValue and not freqValue:
                     # done and due, not freq -> Check if the due period match
-                    if dueValue == fullDate or dueValue == monthDate or dueValue == dayDate or weekDate in dueValue:
+                    if matchDate(dueValue):
                         # if the due field matches one of the matching rules, it's processed.
                         # First we clean the task name to remove unwanted
                         finalLine = cleanLine(line)
@@ -131,7 +146,6 @@ def main():
     # Recursively get all taskpaper file in the input path
     result = [y for x in os.walk(inputFolder) for y in glob(os.path.join(x[0], '*.taskpaper'))]
     archiveTasks = []
-    archiveFile = 'Archive.taskpaper'
 
     for inputFile in result:
         # If this is an archive file, changes the archive file var and skips the processing
